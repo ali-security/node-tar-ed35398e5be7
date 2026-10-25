@@ -1,19 +1,19 @@
 name: CI
 
 on:
-  push: {}
-  pull_request_target:
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - '*.json'
+  workflow_dispatch:
+    inputs:
+      test-filter:
+        description: 'Optional tap test file(s) to run'
+        required: false
+        default: ''
 
 
 jobs:
   build:
     strategy:
       matrix:
-        node-version: [22.x, 24.x]
+        node-version: [22.x, 24.4.1]
         platform:
         - os: ubuntu-latest
           shell: bash
@@ -22,6 +22,7 @@ jobs:
       fail-fast: false
 
     runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 30
     defaults:
       run:
         shell: ${{ matrix.platform.shell }}
@@ -39,4 +40,16 @@ jobs:
         run: npm install
 
       - name: Run Tests
-        run: npm test -- -c
+        run: npm test -- -c ${{ inputs.test-filter }}
+
+      - name: Pack
+        if: matrix.platform.os == 'ubuntu-latest' && matrix.node-version == '24.4.1'
+        run: npm pack
+
+      - name: Upload tarball
+        if: matrix.platform.os == 'ubuntu-latest' && matrix.node-version == '24.4.1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tar-tgz
+          path: tar-*.tgz
+          if-no-files-found: error
